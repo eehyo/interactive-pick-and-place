@@ -1,0 +1,125 @@
+<mujoco model="water_bottle_20">
+  <asset>
+    <mesh file="visual/model_normalized_0.obj" name="water_bottle_15_normalized_0_vis" scale="0.2025 0.2025 0.2025" refquat="1.0 0.0 0.0 0.0" />
+    <mesh file="visual/model_normalized_1.obj" name="water_bottle_15_normalized_1_vis" scale="0.2025 0.2025 0.2025" refquat="1.0 0.0 0.0 0.0" />
+    <mesh file="visual/model_normalized_2.obj" name="water_bottle_15_normalized_2_vis" scale="0.2025 0.2025 0.2025" refquat="1.0 0.0 0.0 0.0" />
+    <mesh file="visual/model_normalized_3.obj" name="water_bottle_15_normalized_3_vis" scale="0.2025 0.2025 0.2025" refquat="1.0 0.0 0.0 0.0" />
+    <mesh file="visual/model_normalized_4.obj" name="water_bottle_15_normalized_4_vis" scale="0.2025 0.2025 0.2025" refquat="1.0 0.0 0.0 0.0" />
+    <mesh file="visual/model_normalized_5.obj" name="water_bottle_15_normalized_5_vis" scale="0.2025 0.2025 0.2025" refquat="1.0 0.0 0.0 0.0" />
+    <mesh file="visual/model_normalized_6.obj" name="water_bottle_15_normalized_6_vis" scale="0.2025 0.2025 0.2025" refquat="1.0 0.0 0.0 0.0" />
+    <mesh file="visual/model_normalized_7.obj" name="water_bottle_15_normalized_7_vis" scale="0.2025 0.2025 0.2025" refquat="1.0 0.0 0.0 0.0" />
+    <mesh file="visual/model_normalized_8.obj" name="water_bottle_15_normalized_8_vis" scale="0.2025 0.2025 0.2025" refquat="1.0 0.0 0.0 0.0" />
+    <mesh file="visual/model_normalized_9.obj" name="water_bottle_15_normalized_9_vis" scale="0.2025 0.2025 0.2025" refquat="1.0 0.0 0.0 0.0" />
+    <mesh file="visual/model_normalized_10.obj" name="water_bottle_15_normalized_10_vis" scale="0.2025 0.2025 0.2025" refquat="1.0 0.0 0.0 0.0" />
+    <mesh file="visual/model_normalized_11.obj" name="water_bottle_15_normalized_11_vis" scale="0.2025 0.2025 0.2025" refquat="1.0 0.0 0.0 0.0" />
+    <mesh file="collision/model_normalized_collision_22.obj" name="water_bottle_15_normalized_collision_22._coll" scale="0.2025 0.2025 0.2025" refquat="1.0 0.0 0.0 0.0" />
+    <mesh file="collision/model_normalized_collision_23.obj" name="water_bottle_15_normalized_collision_23._coll" scale="0.2025 0.2025 0.2025" refquat="1.0 0.0 0.0 0.0" />
+    <mesh file="collision/model_normalized_collision_21.obj" name="water_bottle_15_normalized_collision_21._coll" scale="0.2025 0.2025 0.2025" refquat="1.0 0.0 0.0 0.0" />
+    <mesh file="collision/model_normalized_collision_20.obj" name="water_bottle_15_normalized_collision_20._coll" scale="0.2025 0.2025 0.2025" refquat="1.0 0.0 0.0 0.0" />
+    <mesh file="collision/model_normalized_collision_24.obj" name="water_bottle_15_normalized_collision_24._coll" scale="0.2025 0.2025 0.2025" refquat="1.0 0.0 0.0 0.0" />
+    <mesh file="collision/model_normalized_collision_30.obj" name="water_bottle_15_normalized_collision_30._coll" scale="0.2025 0.2025 0.2025" refquat="1.0 0.0 0.0 0.0" />
+    <mesh file="collision/model_normalized_collision_18.obj" name="water_bottle_15_normalized_collision_18._coll" scale="0.2025 0.2025 0.2025" refquat="1.0 0.0 0.0 0.0" />
+    <mesh file="collision/model_normalized_collision_19.obj" name="water_bottle_15_normalized_collision_19._coll" scale="0.2025 0.2025 0.2025" refquat="1.0 0.0 0.0 0.0" />
+    <mesh file="collision/model_normalized_collision_31.obj" name="water_bottle_15_normalized_collision_31._coll" scale="0.2025 0.2025 0.2025" refquat="1.0 0.0 0.0 0.0" />
+    <mesh file="collision/model_normalized_collision_25.obj" name="water_bottle_15_normalized_collision_25._coll" scale="0.2025 0.2025 0.2025" refquat="1.0 0.0 0.0 0.0" />
+    <mesh file="collision/model_normalized_collision_27.obj" name="water_bottle_15_normalized_collision_27._coll" scale="0.2025 0.2025 0.2025" refquat="1.0 0.0 0.0 0.0" />
+    <mesh file="collision/model_normalized_collision_26.obj" name="water_bottle_15_normalized_collision_26._coll" scale="0.2025 0.2025 0.2025" refquat="1.0 0.0 0.0 0.0" />
+    <mesh file="collision/model_normalized_collision_9.obj" name="water_bottle_15_normalized_collision_9._coll" scale="0.2025 0.2025 0.2025" refquat="1.0 0.0 0.0 0.0" />
+    <mesh file="collision/model_normalized_collision_8.obj" name="water_bottle_15_normalized_collision_8._coll" scale="0.2025 0.2025 0.2025" refquat="1.0 0.0 0.0 0.0" />
+    <mesh file="collision/model_normalized_collision_6.obj" name="water_bottle_15_normalized_collision_6._coll" scale="0.2025 0.2025 0.2025" refquat="1.0 0.0 0.0 0.0" />
+    <mesh file="collision/model_normalized_collision_7.obj" name="water_bottle_15_normalized_collision_7._coll" scale="0.2025 0.2025 0.2025" refquat="1.0 0.0 0.0 0.0" />
+    <mesh file="collision/model_normalized_collision_5.obj" name="water_bottle_15_normalized_collision_5._coll" scale="0.2025 0.2025 0.2025" refquat="1.0 0.0 0.0 0.0" />
+    <mesh file="collision/model_normalized_collision_4.obj" name="water_bottle_15_normalized_collision_4._coll" scale="0.2025 0.2025 0.2025" refquat="1.0 0.0 0.0 0.0" />
+    <mesh file="collision/model_normalized_collision_0.obj" name="water_bottle_15_normalized_collision_0._coll" scale="0.2025 0.2025 0.2025" refquat="1.0 0.0 0.0 0.0" />
+    <mesh file="collision/model_normalized_collision_1.obj" name="water_bottle_15_normalized_collision_1._coll" scale="0.2025 0.2025 0.2025" refquat="1.0 0.0 0.0 0.0" />
+    <mesh file="collision/model_normalized_collision_3.obj" name="water_bottle_15_normalized_collision_3._coll" scale="0.2025 0.2025 0.2025" refquat="1.0 0.0 0.0 0.0" />
+    <mesh file="collision/model_normalized_collision_2.obj" name="water_bottle_15_normalized_collision_2._coll" scale="0.2025 0.2025 0.2025" refquat="1.0 0.0 0.0 0.0" />
+    <mesh file="collision/model_normalized_collision_17.obj" name="water_bottle_15_normalized_collision_17._coll" scale="0.2025 0.2025 0.2025" refquat="1.0 0.0 0.0 0.0" />
+    <mesh file="collision/model_normalized_collision_16.obj" name="water_bottle_15_normalized_collision_16._coll" scale="0.2025 0.2025 0.2025" refquat="1.0 0.0 0.0 0.0" />
+    <mesh file="collision/model_normalized_collision_28.obj" name="water_bottle_15_normalized_collision_28._coll" scale="0.2025 0.2025 0.2025" refquat="1.0 0.0 0.0 0.0" />
+    <mesh file="collision/model_normalized_collision_14.obj" name="water_bottle_15_normalized_collision_14._coll" scale="0.2025 0.2025 0.2025" refquat="1.0 0.0 0.0 0.0" />
+    <mesh file="collision/model_normalized_collision_15.obj" name="water_bottle_15_normalized_collision_15._coll" scale="0.2025 0.2025 0.2025" refquat="1.0 0.0 0.0 0.0" />
+    <mesh file="collision/model_normalized_collision_29.obj" name="water_bottle_15_normalized_collision_29._coll" scale="0.2025 0.2025 0.2025" refquat="1.0 0.0 0.0 0.0" />
+    <mesh file="collision/model_normalized_collision_11.obj" name="water_bottle_15_normalized_collision_11._coll" scale="0.2025 0.2025 0.2025" refquat="1.0 0.0 0.0 0.0" />
+    <mesh file="collision/model_normalized_collision_10.obj" name="water_bottle_15_normalized_collision_10._coll" scale="0.2025 0.2025 0.2025" refquat="1.0 0.0 0.0 0.0" />
+    <mesh file="collision/model_normalized_collision_12.obj" name="water_bottle_15_normalized_collision_12._coll" scale="0.2025 0.2025 0.2025" refquat="1.0 0.0 0.0 0.0" />
+    <mesh file="collision/model_normalized_collision_13.obj" name="water_bottle_15_normalized_collision_13._coll" scale="0.2025 0.2025 0.2025" refquat="1.0 0.0 0.0 0.0" />
+    <texture type="2d" name="water_bottle_150" file="visual/image0.png" />
+    <texture type="2d" name="water_bottle_1520" file="visual/image20.png" />
+    <texture type="2d" name="water_bottle_1535" file="visual/image35.png" />
+    <texture type="2d" name="water_bottle_154" file="visual/image4.png" />
+    <texture type="2d" name="water_bottle_157" file="visual/image7.png" />
+    <texture type="2d" name="water_bottle_1510" file="visual/image10.png" />
+    <texture type="2d" name="water_bottle_1514" file="visual/image14.png" />
+    <texture type="2d" name="water_bottle_1517" file="visual/image17.png" />
+    <texture type="2d" name="water_bottle_1524" file="visual/image24.png" />
+    <texture type="2d" name="water_bottle_1527" file="visual/image27.png" />
+    <texture type="2d" name="water_bottle_1523" file="visual/image23.png" />
+    <texture type="2d" name="water_bottle_1532" file="visual/image32.png" />
+    <material name="Base.002_water_bottle_15" texture="water_bottle_150" specular="0.5" shininess="0.25" />
+    <material name="Base.003_water_bottle_15" texture="water_bottle_1520" specular="0.5" shininess="0.25" />
+    <material name="Material.017_water_bottle_15" texture="water_bottle_1535" specular="0.5" shininess="0.25" />
+    <material name="Material.018_water_bottle_15" texture="water_bottle_154" specular="0.5" shininess="0.25" />
+    <material name="Material.019_water_bottle_15" texture="water_bottle_157" specular="0.5" shininess="0.25" />
+    <material name="Material.020_water_bottle_15" texture="water_bottle_1510" specular="0.5" shininess="0.25" />
+    <material name="Material.021_water_bottle_15" texture="water_bottle_1514" specular="0.5" shininess="0.25" />
+    <material name="Material.022_water_bottle_15" texture="water_bottle_1517" specular="0.5" shininess="0.25" />
+    <material name="Material.023_water_bottle_15" texture="water_bottle_1524" specular="0.5" shininess="0.25" />
+    <material name="Material.024_water_bottle_15" texture="water_bottle_1527" specular="0.5" shininess="0.25" />
+    <material name="Metal.002_water_bottle_15" texture="water_bottle_1523" specular="0.5" shininess="0.25" />
+    <material name="Rubber.001_water_bottle_15" texture="water_bottle_1532" specular="0.5" shininess="0.25" />
+  </asset>
+  <worldbody>
+    <body name="body_obj_water_bottle_15">
+      <freejoint />
+      <geom solimp="0.998 0.998 0.001" solref="0.001 1" friction="0.95 0.3 0.1" type="mesh" mesh="water_bottle_15_normalized_0_vis" conaffinity="0" contype="0" group="2" material="Material.024_water_bottle_15" />
+      <geom solimp="0.998 0.998 0.001" solref="0.001 1" friction="0.95 0.3 0.1" type="mesh" mesh="water_bottle_15_normalized_1_vis" conaffinity="0" contype="0" group="2" material="Material.023_water_bottle_15" />
+      <geom solimp="0.998 0.998 0.001" solref="0.001 1" friction="0.95 0.3 0.1" type="mesh" mesh="water_bottle_15_normalized_2_vis" conaffinity="0" contype="0" group="2" material="Base.003_water_bottle_15" />
+      <geom solimp="0.998 0.998 0.001" solref="0.001 1" friction="0.95 0.3 0.1" type="mesh" mesh="water_bottle_15_normalized_3_vis" conaffinity="0" contype="0" group="2" material="Material.022_water_bottle_15" />
+      <geom solimp="0.998 0.998 0.001" solref="0.001 1" friction="0.95 0.3 0.1" type="mesh" mesh="water_bottle_15_normalized_4_vis" conaffinity="0" contype="0" group="2" material="Material.021_water_bottle_15" />
+      <geom solimp="0.998 0.998 0.001" solref="0.001 1" friction="0.95 0.3 0.1" type="mesh" mesh="water_bottle_15_normalized_5_vis" conaffinity="0" contype="0" group="2" material="Material.020_water_bottle_15" />
+      <geom solimp="0.998 0.998 0.001" solref="0.001 1" friction="0.95 0.3 0.1" type="mesh" mesh="water_bottle_15_normalized_6_vis" conaffinity="0" contype="0" group="2" material="Material.019_water_bottle_15" />
+      <geom solimp="0.998 0.998 0.001" solref="0.001 1" friction="0.95 0.3 0.1" type="mesh" mesh="water_bottle_15_normalized_7_vis" conaffinity="0" contype="0" group="2" material="Material.018_water_bottle_15" />
+      <geom solimp="0.998 0.998 0.001" solref="0.001 1" friction="0.95 0.3 0.1" type="mesh" mesh="water_bottle_15_normalized_8_vis" conaffinity="0" contype="0" group="2" material="Material.017_water_bottle_15" />
+      <geom solimp="0.998 0.998 0.001" solref="0.001 1" friction="0.95 0.3 0.1" type="mesh" mesh="water_bottle_15_normalized_9_vis" conaffinity="0" contype="0" group="2" material="Rubber.001_water_bottle_15" />
+      <geom solimp="0.998 0.998 0.001" solref="0.001 1" friction="0.95 0.3 0.1" type="mesh" mesh="water_bottle_15_normalized_10_vis" conaffinity="0" contype="0" group="2" material="Metal.002_water_bottle_15" />
+      <geom solimp="0.998 0.998 0.001" solref="0.001 1" friction="0.95 0.3 0.1" type="mesh" mesh="water_bottle_15_normalized_11_vis" conaffinity="0" contype="0" group="2" material="Base.002_water_bottle_15" />
+      <geom solimp="0.97 0.995 0.0005" solref="0.002 1" friction="0.9 0.02 0.002" type="mesh" mesh="water_bottle_15_normalized_collision_22._coll" group="3" rgba="0.8 0.8 0.8 0.0" />
+      <geom solimp="0.97 0.995 0.0005" solref="0.002 1" friction="0.9 0.02 0.002" type="mesh" mesh="water_bottle_15_normalized_collision_23._coll" group="3" rgba="0.8 0.8 0.8 0.0" />
+      <geom solimp="0.97 0.995 0.0005" solref="0.002 1" friction="0.9 0.02 0.002" type="mesh" mesh="water_bottle_15_normalized_collision_21._coll" group="3" rgba="0.8 0.8 0.8 0.0" />
+      <geom solimp="0.97 0.995 0.0005" solref="0.002 1" friction="0.9 0.02 0.002" type="mesh" mesh="water_bottle_15_normalized_collision_20._coll" group="3" rgba="0.8 0.8 0.8 0.0" />
+      <geom solimp="0.97 0.995 0.0005" solref="0.002 1" friction="0.9 0.02 0.002" type="mesh" mesh="water_bottle_15_normalized_collision_24._coll" group="3" rgba="0.8 0.8 0.8 0.0" />
+      <geom solimp="0.97 0.995 0.0005" solref="0.002 1" friction="0.9 0.02 0.002" type="mesh" mesh="water_bottle_15_normalized_collision_30._coll" group="3" rgba="0.8 0.8 0.8 0.0" />
+      <geom solimp="0.97 0.995 0.0005" solref="0.002 1" friction="0.9 0.02 0.002" type="mesh" mesh="water_bottle_15_normalized_collision_18._coll" group="3" rgba="0.8 0.8 0.8 0.0" />
+      <geom solimp="0.97 0.995 0.0005" solref="0.002 1" friction="0.9 0.02 0.002" type="mesh" mesh="water_bottle_15_normalized_collision_19._coll" group="3" rgba="0.8 0.8 0.8 0.0" />
+      <geom solimp="0.97 0.995 0.0005" solref="0.002 1" friction="0.9 0.02 0.002" type="mesh" mesh="water_bottle_15_normalized_collision_31._coll" group="3" rgba="0.8 0.8 0.8 0.0" />
+      <geom solimp="0.97 0.995 0.0005" solref="0.002 1" friction="0.9 0.02 0.002" type="mesh" mesh="water_bottle_15_normalized_collision_25._coll" group="3" rgba="0.8 0.8 0.8 0.0" />
+      <geom solimp="0.97 0.995 0.0005" solref="0.002 1" friction="0.9 0.02 0.002" type="mesh" mesh="water_bottle_15_normalized_collision_27._coll" group="3" rgba="0.8 0.8 0.8 0.0" />
+      <geom solimp="0.97 0.995 0.0005" solref="0.002 1" friction="0.9 0.02 0.002" type="mesh" mesh="water_bottle_15_normalized_collision_26._coll" group="3" rgba="0.8 0.8 0.8 0.0" />
+      <geom solimp="0.97 0.995 0.0005" solref="0.002 1" friction="0.9 0.02 0.002" type="mesh" mesh="water_bottle_15_normalized_collision_9._coll" group="3" rgba="0.8 0.8 0.8 0.0" />
+      <geom solimp="0.97 0.995 0.0005" solref="0.002 1" friction="0.9 0.02 0.002" type="mesh" mesh="water_bottle_15_normalized_collision_8._coll" group="3" rgba="0.8 0.8 0.8 0.0" />
+      <geom solimp="0.97 0.995 0.0005" solref="0.002 1" friction="0.9 0.02 0.002" type="mesh" mesh="water_bottle_15_normalized_collision_6._coll" group="3" rgba="0.8 0.8 0.8 0.0" />
+      <geom solimp="0.97 0.995 0.0005" solref="0.002 1" friction="0.9 0.02 0.002" type="mesh" mesh="water_bottle_15_normalized_collision_7._coll" group="3" rgba="0.8 0.8 0.8 0.0" />
+      <geom solimp="0.97 0.995 0.0005" solref="0.002 1" friction="0.9 0.02 0.002" type="mesh" mesh="water_bottle_15_normalized_collision_5._coll" group="3" rgba="0.8 0.8 0.8 0.0" />
+      <geom solimp="0.97 0.995 0.0005" solref="0.002 1" friction="0.9 0.02 0.002" type="mesh" mesh="water_bottle_15_normalized_collision_4._coll" group="3" rgba="0.8 0.8 0.8 0.0" />
+      <geom solimp="0.97 0.995 0.0005" solref="0.002 1" friction="0.9 0.02 0.002" type="mesh" mesh="water_bottle_15_normalized_collision_0._coll" group="3" rgba="0.8 0.8 0.8 0.0" />
+      <geom solimp="0.97 0.995 0.0005" solref="0.002 1" friction="0.9 0.02 0.002" type="mesh" mesh="water_bottle_15_normalized_collision_1._coll" group="3" rgba="0.8 0.8 0.8 0.0" />
+      <geom solimp="0.97 0.995 0.0005" solref="0.002 1" friction="0.9 0.02 0.002" type="mesh" mesh="water_bottle_15_normalized_collision_3._coll" group="3" rgba="0.8 0.8 0.8 0.0" />
+      <geom solimp="0.97 0.995 0.0005" solref="0.002 1" friction="0.9 0.02 0.002" type="mesh" mesh="water_bottle_15_normalized_collision_2._coll" group="3" rgba="0.8 0.8 0.8 0.0" />
+      <geom solimp="0.97 0.995 0.0005" solref="0.002 1" friction="0.9 0.02 0.002" type="mesh" mesh="water_bottle_15_normalized_collision_17._coll" group="3" rgba="0.8 0.8 0.8 0.0" />
+      <geom solimp="0.97 0.995 0.0005" solref="0.002 1" friction="0.9 0.02 0.002" type="mesh" mesh="water_bottle_15_normalized_collision_16._coll" group="3" rgba="0.8 0.8 0.8 0.0" />
+      <geom solimp="0.97 0.995 0.0005" solref="0.002 1" friction="0.9 0.02 0.002" type="mesh" mesh="water_bottle_15_normalized_collision_28._coll" group="3" rgba="0.8 0.8 0.8 0.0" />
+      <geom solimp="0.97 0.995 0.0005" solref="0.002 1" friction="0.9 0.02 0.002" type="mesh" mesh="water_bottle_15_normalized_collision_14._coll" group="3" rgba="0.8 0.8 0.8 0.0" />
+      <geom solimp="0.97 0.995 0.0005" solref="0.002 1" friction="0.9 0.02 0.002" type="mesh" mesh="water_bottle_15_normalized_collision_15._coll" group="3" rgba="0.8 0.8 0.8 0.0" />
+      <geom solimp="0.97 0.995 0.0005" solref="0.002 1" friction="0.9 0.02 0.002" type="mesh" mesh="water_bottle_15_normalized_collision_29._coll" group="3" rgba="0.8 0.8 0.8 0.0" />
+      <geom solimp="0.97 0.995 0.0005" solref="0.002 1" friction="0.9 0.02 0.002" type="mesh" mesh="water_bottle_15_normalized_collision_11._coll" group="3" rgba="0.8 0.8 0.8 0.0" />
+      <geom solimp="0.97 0.995 0.0005" solref="0.002 1" friction="0.9 0.02 0.002" type="mesh" mesh="water_bottle_15_normalized_collision_10._coll" group="3" rgba="0.8 0.8 0.8 0.0" />
+      <geom solimp="0.97 0.995 0.0005" solref="0.002 1" friction="0.9 0.02 0.002" type="mesh" mesh="water_bottle_15_normalized_collision_12._coll" group="3" rgba="0.8 0.8 0.8 0.0" />
+      <geom solimp="0.97 0.995 0.0005" solref="0.002 1" friction="0.9 0.02 0.002" type="mesh" mesh="water_bottle_15_normalized_collision_13._coll" group="3" rgba="0.8 0.8 0.8 0.0" />
+      <site rgba="0 0 0 0" size="0.005" pos="0.00019869299999999938 -0.0002024541 -0.0675" name="bottom_site_water_bottle_15" group="0" />
+      <site rgba="0 0 0 0" size="0.005" pos="0.00019869299999999938 -0.0002024541 0.0670797342" name="top_site_water_bottle_15" group="0" />
+      <site rgba="0 0 0 0" size="0.005" pos="0.0199348965 0.019529953199999995 -0.00021013289999999936" name="horizontal_radius_site_water_bottle_15" group="0" />
+      <inertial mass="0.2" diaginertia="0.0001 0.0001 0.0001" pos="0 0 0" />
+    </body>
+  </worldbody>
+</mujoco>
