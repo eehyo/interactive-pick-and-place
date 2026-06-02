@@ -1,0 +1,31 @@
+# Runtime dependencies for the current package/ tree.
+
+# Core scientific stack
+numpy
+scipy
+matplotlib
+pillow
+ipython
+ipykernel
+trimesh
+
+# MuJoCo simulation and rendering
+mujoco
+glfw
+PyOpenGL
+opencv-python
+
+# Interactive Qt widgets
+PyQt5
+pyqtgraph
+PyAutoGUI
+
+# Foundation/perception models
+torch==2.10.0
+torchvision==0.25.0
+torchaudio==2.10.0
+transformers
+huggingface-hub
+
+# Gemini Robotics-ER helper
+google-genai

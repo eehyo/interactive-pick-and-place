@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "package"
+version = "0.1.0"
+description = "Notebook-facing helpers for interactive MuJoCo pick-and-place demos"
+readme = "README.md"
+requires-python = ">=3.10"
+dynamic = ["dependencies"]
+
+[tool.setuptools]
+packages = [
+    "package",
+    "package.api",
+    "package.hf_models",
+    "package.init_scripts",
+    "package.kinematics",
+    "package.mujoco_sim",
+    "package.qt",
+    "package.utility",
+]
+
+[tool.setuptools.package-dir]
+"package" = "."
+"package.api" = "api"
+"package.hf_models" = "hf_models"
+"package.init_scripts" = "init_scripts"
+"package.kinematics" = "kinematics"
+"package.mujoco_sim" = "mujoco_sim"
+"package.qt" = "qt"
+"package.utility" = "utility"
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}

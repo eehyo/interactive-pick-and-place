@@ -1,0 +1,10 @@
+<?xml version="1.0" ?>
+<mujoco model="scene">
+    <include file="../../asset/floor/floor_simple_white.xml"/>
+    <include file="../../asset/robotis/robotis_ffw/ffw_sg2_site_added.xml"/>
+    <include file="../../asset/object/table_0.xml"/>
+    <include file="../../asset/objaverse/can/can_0/model_new.xml"/>
+    <include file="../../asset/objaverse/can/can_2/model_new.xml"/>
+    <include file="../../asset/objaverse/bowl/bowl_5/model_new.xml"/>
+    <option timestep="0.002" integrator="implicitfast"/>
+</mujoco>
