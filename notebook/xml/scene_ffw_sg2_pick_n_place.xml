@@ -3,8 +3,8 @@
     <include file="../../asset/robotis/robotis_ffw/ffw_sg2_site_added.xml"/>
     <include file="../../asset/object/table_0.xml"/>
     <include file="../../asset/floor/floor_simple_white.xml"/>
-    <include file="../../asset/objaverse/can/can_3/model_new.xml"/>
-    <include file="../../asset/objaverse/can/can_13/model_new.xml"/>
+    <include file="../../asset/objaverse/can/can_18/model_new.xml"/>
+    <include file="../../asset/objaverse/can/can_17/model_new.xml"/>
     <include file="../../asset/objaverse/bowl/bowl_5/model_new.xml"/>
     <option timestep="0.002" integrator="implicitfast" noslip_iterations="3"/>
     <size memory="4G"/>

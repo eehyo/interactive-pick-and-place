@@ -44,3 +44,6 @@ htmlcov/
 *.log
 *.tmp
 *.swp
+asset/
+
+hf_models/

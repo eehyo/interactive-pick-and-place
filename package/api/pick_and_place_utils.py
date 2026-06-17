@@ -409,6 +409,73 @@ def capture_rgbd_observation(
 # Point cloud
 # -----------------------------------------------------------------------------
 
+def estimate_grasp_center(
+        points,
+        height_ratio=0.50,
+        lower_percentile=10.0,
+        upper_percentile=90.0,
+    ):
+    """
+    Estimate a size-aware side-grasp point from a world-frame point cloud.
+
+    The horizontal coordinates use the midpoint of robust point-cloud bounds.
+    This is less biased by unevenly sampled visible surfaces, so bowl placement
+    targets stay closer to the geometric middle. The vertical grasp coordinate
+    is placed at ``height_ratio`` between robust lower and upper z bounds, so
+    the grasp height scales with the observed object height instead of relying
+    on a fixed offset.
+
+    Parameters:
+        points (array-like): Shape ``(N, 3)`` point cloud.
+        height_ratio (float): Relative grasp height from lower to upper bound.
+        lower_percentile, upper_percentile (float): Robust bounds used to
+            reject sparse depth and segmentation outliers.
+
+    Returns:
+        dict: ``center``, ``grasp_center``, ``extent``, ``lower_bound``, and
+            ``upper_bound``. Values are None when no finite points exist.
+    """
+    points = np.asarray(points, dtype=np.float64).reshape(-1, 3)
+    points = points[np.isfinite(points).all(axis=1)]
+    if points.shape[0] == 0:
+        return dict(
+            center=None,
+            grasp_center=None,
+            extent=None,
+            lower_bound=None,
+            upper_bound=None,
+        )
+
+    lower_percentile = float(lower_percentile)
+    upper_percentile = float(upper_percentile)
+    if not 0.0 <= lower_percentile < upper_percentile <= 100.0:
+        raise ValueError("Expected 0 <= lower_percentile < upper_percentile <= 100.")
+
+    lower_bound, upper_bound = np.percentile(
+        points,
+        [lower_percentile, upper_percentile],
+        axis=0,
+    )
+    inlier_mask = np.all((points >= lower_bound) & (points <= upper_bound), axis=1)
+    inliers = points[inlier_mask]
+    if inliers.shape[0] < 4:
+        inliers = points
+
+    center = np.median(inliers, axis=0)
+    center[:2] = 0.5 * (lower_bound[:2] + upper_bound[:2])
+    grasp_center = center.copy()
+    grasp_center[2] = lower_bound[2] + np.clip(float(height_ratio), 0.0, 1.0) * (
+        upper_bound[2] - lower_bound[2]
+    )
+    return dict(
+        center=center,
+        grasp_center=grasp_center,
+        extent=upper_bound - lower_bound,
+        lower_bound=lower_bound,
+        upper_bound=upper_bound,
+    )
+
+
 def build_point_cloud_observation(
         env,
         depth,
@@ -419,6 +486,7 @@ def build_point_cloud_observation(
         rsz_rate_for_pcd=1 / 2,
         to_world=True,
         valid_depth_threshold=1e-8,
+        grasp_height_ratio=0.55,
     ):
     """
     Convert a depth image, and optionally a mask, into point-cloud arrays.
@@ -441,10 +509,12 @@ def build_point_cloud_observation(
         rsz_rate_for_pcd (float | None): Optional depth downsampling factor.
         to_world (bool): If True, return selected points in world frame.
         valid_depth_threshold (float): Minimum valid depth.
+        grasp_height_ratio (float): Relative height used for ``grasp_center``.
 
     Returns:
         dict: Point-cloud observation with ``full``, ``masked``, ``center``,
-            ``xyz_img``, ``xyz_img_world``, and ``mask``.
+            size-aware ``grasp_center``, ``extent``, ``xyz_img``,
+            ``xyz_img_world``, and ``mask``.
     """
     if rsz_rate_for_pcd is not None:
         h_rsz = int(depth.shape[0] * float(rsz_rate_for_pcd))
@@ -474,6 +544,10 @@ def build_point_cloud_observation(
     mask_rsz = None
     masked_pcd = None
     center = None
+    grasp_center = None
+    extent = None
+    lower_bound = None
+    upper_bound = None
     valid_mask_count = 0
     mask_area = 0
     if mask is not None:
@@ -508,10 +582,16 @@ def build_point_cloud_observation(
         # Expected output:
         #   Set ``center`` to either a shape-(3,) numpy array or ``None``.
         # ------------------------------------------------------------------
-        raise NotImplementedError(
-            "FILL IN: compute `center` from `masked_pcd` in "
-            "build_point_cloud_observation."
-        )
+        if masked_pcd.shape[0] > 0:
+            grasp_info = estimate_grasp_center(
+                points=masked_pcd,
+                height_ratio=grasp_height_ratio,
+            )
+            center = grasp_info["center"]
+            grasp_center = grasp_info["grasp_center"]
+            extent = grasp_info["extent"]
+            lower_bound = grasp_info["lower_bound"]
+            upper_bound = grasp_info["upper_bound"]
 
         if center is None and rsz_rate_for_pcd is not None and int(np.asarray(mask).astype(bool).sum()) > 0:
             return build_point_cloud_observation(
@@ -524,12 +604,17 @@ def build_point_cloud_observation(
                 rsz_rate_for_pcd      = None,
                 to_world              = to_world,
                 valid_depth_threshold = valid_depth_threshold,
+                grasp_height_ratio    = grasp_height_ratio,
             )
 
     return dict(
         full          = full_pcd,
         masked        = masked_pcd,
         center        = center,
+        grasp_center  = grasp_center,
+        extent        = extent,
+        lower_bound   = lower_bound,
+        upper_bound   = upper_bound,
         xyz_img       = xyz_img,
         xyz_img_world = xyz_img_world,
         mask          = mask_rsz,
@@ -546,6 +631,7 @@ def build_point_cloud_observation(
             mask_area         = int(mask_area),
             valid_mask_count  = int(valid_mask_count),
             masked_pcd_count  = 0 if masked_pcd is None else int(len(masked_pcd)),
+            grasp_height_ratio = float(grasp_height_ratio),
         ),
     )
 
@@ -836,8 +922,8 @@ def make_owlv2_text_queries(text_queries):
         "bottled_water": ["water bottle", "bottle", "plastic bottle", "bottled water"],
         "water_bottle": ["water bottle", "bottle", "plastic bottle"],
         "can": ["can", "soda can"],
-        "bowl": ["bowl", "round bowl"],
-        "round bowl": ["round bowl", "bowl"],
+        "bowl": ["gray bowl", "empty bowl", "bowl"],
+        "round bowl": ["gray bowl", "empty bowl", "bowl"],
     }
     queries = []
     for query in raw_queries:
@@ -948,6 +1034,7 @@ def normalize_owlv2_sam2_results(
         item["clipped_mask_area"] = int(item["mask"].sum())
         if int(item["mask"].sum()) == 0 and bool(bbox_mask_fallback) and item.get("box", None) is not None and image_shape is not None:
             item["mask"] = bbox_to_mask(image_shape=image_shape, box=item["box"], margin=0)
+            item["clipped_mask_area"] = int(item["mask"].sum())
             item["mask_source"] = "bbox_fallback"
         else:
             item["mask_source"] = "sam2"
@@ -1093,15 +1180,29 @@ def get_grasp_offsets(pitch_deg=0.0, axis_len=0.1):
         dict[str, np.ndarray]: Offsets for ``tcp``, ``top``, ``side``, and
             ``front``.
     """
-    raise NotImplementedError(
-        "FILL IN: define TCP guide-point offsets in get_grasp_offsets."
-    )
+    axis_len = float(axis_len)
+    pitch = float(pitch_deg) * D2R
+
+    # Match the R_tcp convention used in notebooks 03 and 04: the target
+    # rotation columns point toward front, side, and top, respectively.
+    R = rpy2r(np.array([0.0, pitch, 0.0], dtype=np.float64))
+    return {
+        "tcp":   np.zeros(3, dtype=np.float64),
+        "front": axis_len * R[:, 0],
+        "side":  axis_len * R[:, 1],
+        "top":   axis_len * R[:, 2],
+    }
 
 
 def make_pick_place_phase_targets(
         pick_position,
         place_position,
         grasp_offsets=None,
+        pick_tcp_offset=np.array([0.0, 0.0, 0.0]),
+        pick_lower_bound=None,
+        pick_upper_bound=None,
+        surface_clearance=0.025,
+        grasp_depth_ratio=0.50,
         approach_offset=np.array([-0.10, 0.0, 0.0]),
         lift_offset=np.array([0.0, 0.0, 0.30]),
         place_hover_offset=np.array([0.0, 0.0, 0.30]),
@@ -1130,19 +1231,83 @@ def make_pick_place_phase_targets(
         - Should each phase preserve the same gripper guide-point offsets?
 
     Parameters:
-        pick_position (array-like): Pick TCP target in world frame.
+        pick_position (array-like): Perceived pick point in world frame.
         place_position (array-like): Place object/region center in world frame.
         grasp_offsets (dict[str, array-like] | None): Guide-point offsets.
+        pick_tcp_offset (array-like): World-frame correction applied to the
+            perceived pick point before building pick-side phase targets.
+        pick_lower_bound, pick_upper_bound (array-like | None): Robust masked
+            point-cloud bounds. When provided, ``pregrasp`` stops before the
+            near surface and ``grasp_pose`` advances into the object more
+            gently.
+        surface_clearance (float): Distance to stop before the near surface.
+        grasp_depth_ratio (float): Fraction of the point-cloud thickness to
+            enter from the near surface for the final grasp pose.
         approach_offset, lift_offset, place_hover_offset, place_tcp_offset,
-        retreat_offset (array-like): World-frame phase offsets.
+            retreat_offset (array-like): World-frame phase offsets.
 
     Returns:
         dict[str, dict[str, np.ndarray]]: Phase targets keyed by phase name.
     """
-    raise NotImplementedError(
-        "FILL IN: build phase-wise pick/place targets in "
-        "make_pick_place_phase_targets."
-    )
+    pick_position = np.asarray(pick_position, dtype=np.float64).reshape(3)
+    place_position = np.asarray(place_position, dtype=np.float64).reshape(3)
+    if grasp_offsets is None:
+        grasp_offsets = get_grasp_offsets()
+
+    grasp_offsets = {
+        name: np.asarray(offset, dtype=np.float64).reshape(3)
+        for name, offset in dict(grasp_offsets).items()
+    }
+
+    pick_tcp_offset = np.asarray(pick_tcp_offset, dtype=np.float64).reshape(3)
+    approach_offset = np.asarray(approach_offset, dtype=np.float64).reshape(3)
+    lift_offset = np.asarray(lift_offset, dtype=np.float64).reshape(3)
+    place_hover_offset = np.asarray(place_hover_offset, dtype=np.float64).reshape(3)
+    place_tcp_offset = np.asarray(place_tcp_offset, dtype=np.float64).reshape(3)
+    retreat_offset = np.asarray(retreat_offset, dtype=np.float64).reshape(3)
+
+    def make_target_dict(tcp_position):
+        tcp_position = np.asarray(tcp_position, dtype=np.float64).reshape(3)
+        return {
+            name: tcp_position + offset
+            for name, offset in grasp_offsets.items()
+        }
+
+    pick_tcp_position = pick_position + pick_tcp_offset
+    pregrasp_tcp_position = pick_tcp_position.copy()
+    grasp_tcp_position = pick_tcp_position.copy()
+
+    if pick_lower_bound is not None and pick_upper_bound is not None and np.linalg.norm(approach_offset) > 1e-8:
+        lower = np.asarray(pick_lower_bound, dtype=np.float64).reshape(3)
+        upper = np.asarray(pick_upper_bound, dtype=np.float64).reshape(3)
+        if np.isfinite(lower).all() and np.isfinite(upper).all():
+            insertion_dir = -approach_offset / np.linalg.norm(approach_offset)
+            corners = np.array([
+                [x, y, z]
+                for x in [lower[0], upper[0]]
+                for y in [lower[1], upper[1]]
+                for z in [lower[2], upper[2]]
+            ], dtype=np.float64)
+            projections = corners @ insertion_dir
+            near_proj = float(np.min(projections))
+            far_proj = float(np.max(projections))
+            depth = max(0.0, far_proj - near_proj)
+
+            current_proj = float(pick_tcp_position @ insertion_dir)
+            pregrasp_proj = near_proj - max(0.0, float(surface_clearance))
+            grasp_proj = near_proj + np.clip(float(grasp_depth_ratio), 0.0, 1.0) * depth
+            pregrasp_tcp_position = pick_tcp_position + (pregrasp_proj - current_proj) * insertion_dir
+            grasp_tcp_position = pick_tcp_position + (grasp_proj - current_proj) * insertion_dir
+
+    return {
+        "approach":       make_target_dict(pick_tcp_position + approach_offset),
+        "pregrasp":       make_target_dict(pregrasp_tcp_position),
+        "grasp_pose":     make_target_dict(grasp_tcp_position),
+        "lift":           make_target_dict(grasp_tcp_position + lift_offset),
+        "place_approach": make_target_dict(place_position + place_hover_offset),
+        "place":          make_target_dict(place_position + place_tcp_offset),
+        "retreat":        make_target_dict(place_position + retreat_offset),
+    }
 
 
 def get_gripper_ctrl(use_arm, mode):
@@ -1167,9 +1332,17 @@ def get_gripper_ctrl(use_arm, mode):
     Returns:
         np.ndarray: Shape ``(2,)`` gripper command.
     """
-    raise NotImplementedError(
-        "FILL IN: map open/close mode and active arm to gripper controls."
-    )
+    use_arm = str(use_arm).lower()
+    mode = str(mode).lower()
+    if use_arm not in ["l", "r"]:
+        raise ValueError("use_arm should be 'l' or 'r', got: %s" % str(use_arm))
+    if mode not in ["open", "close"]:
+        raise ValueError("mode should be 'open' or 'close', got: %s" % str(mode))
+
+    ctrl = np.zeros(2, dtype=np.float64)
+    if mode == "close":
+        ctrl[0 if use_arm == "l" else 1] = 1.0
+    return ctrl
 
 
 def attach_body_to_body(

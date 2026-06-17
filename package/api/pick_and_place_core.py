@@ -1131,12 +1131,24 @@ class InteractivePickAndPlaceLoopController(object):
     """
 
     # Full high-level phase order for the pick-and-place rollout.
-    PHASES = ["approach", "pregrasp", "grasp", "lift", "place_approach", "place", "release", "retreat", "done"]
+    PHASES = ["approach", "pregrasp", "grasp_pose", "grasp", "lift", "place_approach", "place", "release", "retreat", "done"]
 
     # Phases that are solved as IK pose-tracking problems. The other execution
     # phases are gripper-specific phases handled by ``update_grasp_phase`` and
     # ``update_release_phase``.
-    POSE_PHASES = ["approach", "pregrasp", "lift", "place_approach", "place", "retreat"]
+    POSE_PHASES = ["approach", "pregrasp", "grasp_pose", "lift", "place_approach", "place", "retreat"]
+
+    # World-frame TCP offsets used to turn perceived object/place centers into
+    # sequential motion targets. Pick height is estimated from point-cloud
+    # extent, so its fixed correction remains zero by default.
+    DEFAULT_PHASE_TARGET_OFFSETS = {
+        "pick_tcp_offset":    (0.0, 0.0, 0.0),
+        "approach_offset":    (-0.10, 0.0, 0.0),
+        "lift_offset":        (0.0, 0.0, 0.30),
+        "place_hover_offset": (0.0, 0.0, 0.30),
+        "place_tcp_offset":   (0.0, 0.0, 0.15),
+        "retreat_offset":     (0.0, 0.0, 0.50),
+    }
 
     def __init__(
             self,
@@ -1155,6 +1167,17 @@ class InteractivePickAndPlaceLoopController(object):
             gripper_dq_thr=1e-2,
             grasp_pitch_deg=0.0,
             grasp_axis_len=0.1,
+            phase_target_offsets=None,
+            phase_nsteps=None,
+            surface_clearance=0.025,
+            grasp_depth_ratio=0.50,
+            release_detach_tick=3,
+            place_clearance=0.025,
+            min_place_height=0.04,
+            grasp_attach_dist_thr=0.055,
+            require_grasp_contact=True,
+            ctrl_smoothing_alpha=0.35,
+            phase_smoothing_alphas=None,
             name="Interactive Pick-and-Place Loop Controller",
         ):
         """
@@ -1180,6 +1203,32 @@ class InteractivePickAndPlaceLoopController(object):
             gripper_dq_thr (float): Gripper velocity threshold for stable grasp.
             grasp_pitch_deg (float): Pitch used for default guide offsets.
             grasp_axis_len (float): Guide-point distance from TCP.
+            phase_target_offsets (dict | None): Optional world-frame offset
+                overrides used to construct sequential pick/place TCP targets.
+            phase_nsteps (dict | None): Optional MuJoCo substeps per phase.
+                Smaller values for place/release make descent and release
+                gentler without slowing the rest of the rollout.
+            surface_clearance (float): Distance to stop before the perceived
+                near object surface during ``pregrasp``.
+            grasp_depth_ratio (float): Fraction of perceived object thickness
+                to enter from the near surface during ``grasp_pose``.
+            release_detach_tick (int): Release ticks to open the gripper before
+                detaching the object.
+            place_clearance (float): Vertical clearance between the perceived
+                place center and the bottom of the held object.
+            min_place_height (float): Minimum TCP height above the perceived
+                place center when point-cloud extent underestimates object
+                height.
+            grasp_attach_dist_thr (float | None): Maximum allowed distance
+                between active TCP and selected object body before kinematic
+                attachment is allowed. Set None to disable this guard.
+            require_grasp_contact (bool): If True, require a MuJoCo contact
+                between the active gripper and selected object before
+                kinematic attachment is allowed.
+            ctrl_smoothing_alpha (float): Low-pass factor for upper-body
+                actuator targets. Smaller values make motion smoother.
+            phase_smoothing_alphas (dict | None): Optional smoothing overrides
+                by phase name.
             name (str): Human-readable controller name.
         """
         self.name = str(name)
@@ -1200,6 +1249,36 @@ class InteractivePickAndPlaceLoopController(object):
         self.max_done_tick = int(max_done_tick)
         self.gripper_dq_thr = float(gripper_dq_thr)
         self.grasp_offsets = get_grasp_offsets(pitch_deg=grasp_pitch_deg, axis_len=grasp_axis_len)
+        target_offsets = dict(self.DEFAULT_PHASE_TARGET_OFFSETS)
+        if phase_target_offsets is not None:
+            unknown_keys = set(phase_target_offsets) - set(target_offsets)
+            if len(unknown_keys) > 0:
+                raise ValueError("Unknown phase target offsets: %s" % sorted(unknown_keys))
+            target_offsets.update(dict(phase_target_offsets))
+        self.phase_target_offsets = {
+            key: np.asarray(value, dtype=np.float64).reshape(3)
+            for key, value in target_offsets.items()
+        }
+        self.phase_nsteps = {
+            "place": max(1, int(self.execute_nstep // 3)),
+            "release": max(1, int(self.execute_nstep // 3)),
+        }
+        if phase_nsteps is not None:
+            self.phase_nsteps.update({str(key): max(1, int(value)) for key, value in phase_nsteps.items()})
+        self.surface_clearance = float(surface_clearance)
+        self.grasp_depth_ratio = float(grasp_depth_ratio)
+        self.release_detach_tick = max(0, int(release_detach_tick))
+        self.place_clearance = float(place_clearance)
+        self.min_place_height = float(min_place_height)
+        self.grasp_attach_dist_thr = None if grasp_attach_dist_thr is None else float(grasp_attach_dist_thr)
+        self.require_grasp_contact = bool(require_grasp_contact)
+        self.ctrl_smoothing_alpha = float(np.clip(ctrl_smoothing_alpha, 0.0, 1.0))
+        self.phase_smoothing_alphas = {}
+        if phase_smoothing_alphas is not None:
+            self.phase_smoothing_alphas.update({
+                str(key): float(np.clip(value, 0.0, 1.0))
+                for key, value in phase_smoothing_alphas.items()
+            })
 
         self.mode = "idle"
         self.phase = "approach"
@@ -1210,12 +1289,19 @@ class InteractivePickAndPlaceLoopController(object):
         self.target_object = dict(body_name=None, metadata={})
         self.pick_position = None
         self.place_position = None
+        self.object_extent = None
+        self.object_lower_bound = None
+        self.object_upper_bound = None
         self.targets = None
         self.ctrl_upper_body = None
         self.ctrl_gripper = None
         self.use_gripper_prev_q = None
         self.attach_active = False
         self.T_body_obj = None
+        self.grasp_attach_dist = np.inf
+        self.grasp_contact_count = 0
+        self.grasp_contact_ready = False
+        self.grasp_attach_ready = False
         self.pending_attach_after_step = False
         self.last_rollout = None
 
@@ -1253,13 +1339,30 @@ class InteractivePickAndPlaceLoopController(object):
             self.target_object.setdefault("metadata", {}).update(dict(metadata))
         return self
 
-    def set_pick_place_targets(self, pick_position=None, place_position=None, targets=None, use_arm=None):
+    def set_pick_place_targets(
+            self,
+            pick_position=None,
+            place_position=None,
+            object_extent=None,
+            object_lower_bound=None,
+            object_upper_bound=None,
+            targets=None,
+            use_arm=None,
+        ):
         """
         Set externally computed pick/place targets.
 
         Parameters:
-            pick_position (array-like | None): Pick TCP target in world frame.
+            pick_position (array-like | None): Perceived pick point in world
+                frame. ``phase_target_offsets["pick_tcp_offset"]`` converts it
+                into the final pregrasp TCP target.
             place_position (array-like | None): Place region/object center.
+            object_extent (array-like | None): Robust perceived object extent.
+                When provided, its height sets a gentle object-size-aware place
+                target instead of the fixed place TCP height.
+            object_lower_bound, object_upper_bound (array-like | None): Robust
+                masked point-cloud bounds used to stop before the near object
+                surface, then enter gently for the final grasp pose.
             targets (dict | None): Optional full phase target dictionary. If
                 omitted, targets are generated from pick/place positions.
             use_arm (str | None): Optional one-call arm override.
@@ -1271,6 +1374,12 @@ class InteractivePickAndPlaceLoopController(object):
             self.pick_position = np.asarray(pick_position, dtype=np.float64).reshape(3)
         if place_position is not None:
             self.place_position = np.asarray(place_position, dtype=np.float64).reshape(3)
+        if object_extent is not None:
+            self.object_extent = np.asarray(object_extent, dtype=np.float64).reshape(3)
+        if object_lower_bound is not None:
+            self.object_lower_bound = np.asarray(object_lower_bound, dtype=np.float64).reshape(3)
+        if object_upper_bound is not None:
+            self.object_upper_bound = np.asarray(object_upper_bound, dtype=np.float64).reshape(3)
         if use_arm is not None:
             self.use_arm = str(use_arm)
         elif self.use_arm is None and self.env is not None and self.pick_position is not None:
@@ -1279,10 +1388,24 @@ class InteractivePickAndPlaceLoopController(object):
         if targets is not None:
             self.targets = targets
         elif self.pick_position is not None and self.place_position is not None:
+            phase_target_offsets = {
+                key: value.copy()
+                for key, value in self.phase_target_offsets.items()
+            }
+            if self.object_extent is not None and np.isfinite(self.object_extent[2]):
+                phase_target_offsets["place_tcp_offset"][2] = max(
+                    self.min_place_height,
+                    0.5 * float(self.object_extent[2]) + self.place_clearance,
+                )
             self.targets = make_pick_place_phase_targets(
-                pick_position  = self.pick_position,
-                place_position = self.place_position,
-                grasp_offsets  = self.grasp_offsets,
+                pick_position     = self.pick_position,
+                place_position    = self.place_position,
+                grasp_offsets     = self.grasp_offsets,
+                pick_lower_bound  = self.object_lower_bound,
+                pick_upper_bound  = self.object_upper_bound,
+                surface_clearance = self.surface_clearance,
+                grasp_depth_ratio = self.grasp_depth_ratio,
+                **phase_target_offsets,
             )
         return self
 
@@ -1308,11 +1431,18 @@ class InteractivePickAndPlaceLoopController(object):
         self.use_gripper_prev_q = None
         self.attach_active = False
         self.T_body_obj = None
+        self.grasp_attach_dist = np.inf
+        self.grasp_contact_count = 0
+        self.grasp_contact_ready = False
+        self.grasp_attach_ready = False
         self.pending_attach_after_step = False
         if clear_targets:
             self.target_object = dict(body_name=None, metadata={})
             self.pick_position = None
             self.place_position = None
+            self.object_extent = None
+            self.object_lower_bound = None
+            self.object_upper_bound = None
             self.targets = None
         return self
 
@@ -1323,6 +1453,9 @@ class InteractivePickAndPlaceLoopController(object):
             pick_requested=False,
             pick_position=None,
             place_position=None,
+            object_extent=None,
+            object_lower_bound=None,
+            object_upper_bound=None,
             targets=None,
             use_arm=None,
         ):
@@ -1336,6 +1469,9 @@ class InteractivePickAndPlaceLoopController(object):
             pick_requested (bool): True when the outside UI says to start.
             pick_position, place_position (array-like | None): Externally
                 computed 3D targets.
+            object_extent, object_lower_bound, object_upper_bound
+                (array-like | None): Point-cloud geometry for surface-aware
+                picking and object-size-aware placing.
             targets (dict | None): Optional full phase target dictionary.
             use_arm (str | None): Optional arm override.
 
@@ -1345,12 +1481,23 @@ class InteractivePickAndPlaceLoopController(object):
         """
         if selected_body_name is not None:
             self.set_target_object(body_name=selected_body_name)
-        if pick_position is not None or place_position is not None or targets is not None or use_arm is not None:
+        if (
+                pick_position is not None
+                or place_position is not None
+                or object_extent is not None
+                or object_lower_bound is not None
+                or object_upper_bound is not None
+                or targets is not None
+                or use_arm is not None
+            ):
             self.set_pick_place_targets(
-                pick_position  = pick_position,
-                place_position = place_position,
-                targets        = targets,
-                use_arm        = use_arm,
+                pick_position      = pick_position,
+                place_position     = place_position,
+                object_extent      = object_extent,
+                object_lower_bound = object_lower_bound,
+                object_upper_bound = object_upper_bound,
+                targets            = targets,
+                use_arm            = use_arm,
             )
 
         if self.mode == "idle":
@@ -1430,6 +1577,10 @@ class InteractivePickAndPlaceLoopController(object):
         self.use_gripper_prev_q = self.env.get_qpos(joint_names=["gripper_%s_joint1" % self.use_arm])
         self.attach_active = False
         self.T_body_obj = None
+        self.grasp_attach_dist = np.inf
+        self.grasp_contact_count = 0
+        self.grasp_contact_ready = False
+        self.grasp_attach_ready = False
         self.pending_attach_after_step = False
         self.mode = "execute"
         return self
@@ -1459,7 +1610,7 @@ class InteractivePickAndPlaceLoopController(object):
                 self.mode = "done"
                 return self.make_rollout_info(status="done", reason="pick-and-place rollout is done.")
 
-        self.pending_attach_after_step = bool(self.attach_active and self.phase != "release")
+        self.pending_attach_after_step = bool(self.attach_active)
         return self.make_rollout_info(
             reason = "executing %s." % self.phase,
             step   = self.make_execute_step_info(),
@@ -1500,10 +1651,149 @@ class InteractivePickAndPlaceLoopController(object):
         Returns:
             None.
         """
-        raise NotImplementedError(
-            "FILL IN: implement IK target tracking and phase advancement in "
-            "update_pose_phase."
-        )
+        if self.env is None:
+            raise ValueError("env is required for pose-phase execution.")
+        if self.ik_api is None:
+            self.ik_api = FFWSG2IKSolverAPI(env=self.env, use_arm=self.use_arm, joints_use=self.upper_body_joint_names)
+        if self.targets is None or self.phase not in self.targets:
+            raise ValueError("No phase targets are available for phase: %s" % str(self.phase))
+
+        phase_targets = self.targets[self.phase]
+        target_weights = {
+            "tcp":   1.0,
+            "top":   0.5,
+            "side":  0.5,
+            "front": 0.5,
+        }
+        self.ik_api.use_arm = self.use_arm
+        self.ik_api.clear_targets()
+        for target_name in ["tcp", "top", "side", "front"]:
+            if target_name not in phase_targets or phase_targets[target_name] is None:
+                continue
+            self.ik_api.set_ik_target(
+                name    = target_name,
+                type    = target_name,
+                p_trgt  = phase_targets[target_name],
+                weight  = target_weights.get(target_name, 1.0),
+                use_arm = self.use_arm,
+            )
+
+        ctrl_upper_body_target, _ik_info = self.ik_api.solve_ik(env=self.env)
+        self.ik_err = self.compute_current_pose_error(phase_targets=phase_targets, target_weights=target_weights)
+        self.ctrl_upper_body = self.smooth_upper_body_ctrl(ctrl_upper_body_target)
+
+        if self.phase in ["lift", "place_approach", "place"]:
+            self.ctrl_gripper = get_gripper_ctrl(self.use_arm, "close")
+        else:
+            self.ctrl_gripper = get_gripper_ctrl(self.use_arm, "open")
+
+        if self.attach_active:
+            self.attach_object()
+
+        is_stable = np.isfinite(self.ik_err) and self.ik_err < self.ik_err_thr
+        self.phase_tick = self.phase_tick + 1 if bool(is_stable) else 0
+        if self.phase_tick >= self.hold_tick_goal:
+            phase_idx = self.PHASES.index(self.phase)
+            self.phase = self.PHASES[min(phase_idx + 1, len(self.PHASES) - 1)]
+            self.phase_tick = 0
+            self.ik_err = np.inf
+
+    def smooth_upper_body_ctrl(self, ctrl_target):
+        """
+        Low-pass filter IK joint targets before sending them to actuators.
+        """
+        ctrl_target = np.asarray(ctrl_target, dtype=np.float64).reshape(-1)
+        if self.ctrl_upper_body is None:
+            return ctrl_target
+        ctrl_prev = np.asarray(self.ctrl_upper_body, dtype=np.float64).reshape(-1)
+        if ctrl_prev.shape != ctrl_target.shape:
+            return ctrl_target
+        alpha = self.phase_smoothing_alphas.get(self.phase, self.ctrl_smoothing_alpha)
+        alpha = float(np.clip(alpha, 0.0, 1.0))
+        return (1.0 - alpha) * ctrl_prev + alpha * ctrl_target
+
+    def compute_current_pose_error(self, phase_targets, target_weights=None):
+        """
+        Measure current site-position error in the live MuJoCo scene.
+
+        Unlike the IK solver's predicted best error, this reflects where the
+        actuated robot currently is. Using it for phase advancement prevents a
+        phase from finishing before the smoothed actuator command catches up.
+        """
+        if phase_targets is None:
+            return np.inf
+        if target_weights is None:
+            target_weights = {}
+
+        weighted_err = 0.0
+        weight_sum = 0.0
+        for target_name in ["tcp", "top", "side", "front"]:
+            p_trgt = phase_targets.get(target_name, None)
+            if p_trgt is None:
+                continue
+            site_name = self.ik_api.get_site_name(type=target_name, use_arm=self.use_arm)
+            p_curr = self.env.get_p(site_name, type="site")
+            weight = float(target_weights.get(target_name, 1.0))
+            weighted_err += weight * float(np.linalg.norm(p_curr - np.asarray(p_trgt).reshape(3)))
+            weight_sum += weight
+        if weight_sum <= 0.0:
+            return np.inf
+        return weighted_err / weight_sum
+
+    def update_grasp_attach_guard(self):
+        """
+        Check whether the selected object is close enough and in contact.
+
+        This keeps the kinematic attach scaffold from hiding a clearly missed
+        grasp. If the gripper closes far away from the selected object, the
+        rollout stays in the grasp phase instead of teleporting the object into
+        the gripper.
+        """
+        body_name = self.target_object.get("body_name", None)
+        if self.env is None or self.use_arm is None or body_name is None:
+            self.grasp_attach_dist = np.inf
+            self.grasp_contact_count = 0
+            self.grasp_contact_ready = False
+            self.grasp_attach_ready = False
+            return False
+
+        dist_ready = self.grasp_attach_dist_thr is None
+        self.grasp_attach_dist = np.inf
+        try:
+            p_tcp = self.env.get_p("gripper_%s_tcp" % self.use_arm, type="body")
+            p_obj = self.env.get_p(body_name, type="body")
+            self.grasp_attach_dist = float(np.linalg.norm(p_tcp - p_obj))
+            if self.grasp_attach_dist_thr is not None:
+                dist_ready = (
+                    np.isfinite(self.grasp_attach_dist)
+                    and self.grasp_attach_dist <= float(self.grasp_attach_dist_thr)
+                )
+        except Exception:
+            self.grasp_attach_dist = np.inf
+
+        self.grasp_contact_count = 0
+        self.grasp_contact_ready = not self.require_grasp_contact
+        if self.require_grasp_contact:
+            gripper_prefix = "gripper_%s" % self.use_arm
+            try:
+                contact_info = self.env.get_contact_info(forward=False)
+                for body1_idx, body2_idx in zip(
+                        contact_info["body1_idx_list"],
+                        contact_info["body2_idx_list"],
+                    ):
+                    body1 = self.env.body_names[int(body1_idx)]
+                    body2 = self.env.body_names[int(body2_idx)]
+                    has_object = body1 == body_name or body2 == body_name
+                    has_gripper = body1.startswith(gripper_prefix) or body2.startswith(gripper_prefix)
+                    if has_object and has_gripper:
+                        self.grasp_contact_count += 1
+                self.grasp_contact_ready = self.grasp_contact_count > 0
+            except Exception:
+                self.grasp_contact_count = 0
+                self.grasp_contact_ready = False
+
+        self.grasp_attach_ready = bool(dist_ready and self.grasp_contact_ready)
+        return self.grasp_attach_ready
 
     def update_grasp_phase(self):
         """
@@ -1517,6 +1807,8 @@ class InteractivePickAndPlaceLoopController(object):
         self.ctrl_gripper = get_gripper_ctrl(self.use_arm, "close")
 
         is_stable = np.all(np.abs(use_gripper_dq) < self.gripper_dq_thr) and np.all(use_gripper_curr_q > 0.2)
+        can_attach = self.update_grasp_attach_guard()
+        is_stable = bool(is_stable and can_attach)
         self.phase_tick = self.phase_tick + 1 if bool(is_stable) else 0
         if self.phase_tick >= self.hold_tick_goal:
             T_w_obj = self.env.get_T(self.target_object["body_name"], type="body")
@@ -1538,8 +1830,9 @@ class InteractivePickAndPlaceLoopController(object):
         if self.attach_active:
             self.attach_object()
         self.ctrl_gripper = get_gripper_ctrl(self.use_arm, "open")
-        self.attach_active = False
         self.phase_tick += 1
+        if self.phase_tick >= self.release_detach_tick:
+            self.attach_active = False
         if self.phase_tick >= self.release_tick_goal:
             self.phase = "retreat"
             self.phase_tick = 0
@@ -1627,9 +1920,36 @@ class InteractivePickAndPlaceLoopController(object):
         Returns:
             dict: Step command dictionary.
         """
-        raise NotImplementedError(
-            "FILL IN: package execution controls for env.step in "
-            "make_execute_step_info."
+        if self.ctrl_upper_body is None or self.ctrl_gripper is None:
+            return self.empty_step_info()
+
+        upper_body_joint_names = None
+        if self.ik_api is not None and self.ik_api.joints_use is not None:
+            upper_body_joint_names = list(self.ik_api.joints_use)
+        elif self.upper_body_joint_names is not None:
+            upper_body_joint_names = list(self.upper_body_joint_names)
+        if upper_body_joint_names is None or len(upper_body_joint_names) == 0:
+            return self.empty_step_info()
+
+        ctrl_upper_body = np.asarray(self.ctrl_upper_body, dtype=np.float64).reshape(-1)
+        ctrl_gripper = np.asarray(self.ctrl_gripper, dtype=np.float64).reshape(-1)
+        if ctrl_upper_body.shape[0] != len(upper_body_joint_names):
+            raise ValueError(
+                "Upper-body control length [%d] does not match joint_names length [%d]." %
+                (ctrl_upper_body.shape[0], len(upper_body_joint_names))
+            )
+        if ctrl_gripper.shape[0] != len(self.gripper_joint_names):
+            raise ValueError(
+                "Gripper control length [%d] does not match gripper_joint_names length [%d]." %
+                (ctrl_gripper.shape[0], len(self.gripper_joint_names))
+            )
+
+        return dict(
+            do_step = True,
+            ctrl = np.concatenate([ctrl_upper_body, ctrl_gripper]),
+            joint_names = upper_body_joint_names + list(self.gripper_joint_names),
+            nstep = self.phase_nsteps.get(self.phase, self.execute_nstep),
+            compensate_root_body_names = ["base_link"],
         )
 
     def empty_step_info(self):
@@ -1660,11 +1980,18 @@ class InteractivePickAndPlaceLoopController(object):
             target_object = dict(self.target_object),
             pick_position = None if self.pick_position is None else self.pick_position.copy(),
             place_position = None if self.place_position is None else self.place_position.copy(),
+            object_extent = None if self.object_extent is None else self.object_extent.copy(),
+            object_lower_bound = None if self.object_lower_bound is None else self.object_lower_bound.copy(),
+            object_upper_bound = None if self.object_upper_bound is None else self.object_upper_bound.copy(),
             targets = self.targets,
             use_arm = self.use_arm,
             ik_api = self.ik_api,
             ik_err = self.ik_err,
             attach_active = self.attach_active,
+            grasp_attach_dist = self.grasp_attach_dist,
+            grasp_contact_count = self.grasp_contact_count,
+            grasp_contact_ready = self.grasp_contact_ready,
+            grasp_attach_ready = self.grasp_attach_ready,
         )
 
     def make_rollout_info(self, status="running", reason="", step=None):
@@ -1687,8 +2014,15 @@ class InteractivePickAndPlaceLoopController(object):
             target_object = dict(self.target_object),
             pick_position = self.pick_position,
             place_position = self.place_position,
+            object_extent = self.object_extent,
+            object_lower_bound = self.object_lower_bound,
+            object_upper_bound = self.object_upper_bound,
             use_arm = self.use_arm,
             ik_err = self.ik_err,
+            grasp_attach_dist = self.grasp_attach_dist,
+            grasp_contact_count = self.grasp_contact_count,
+            grasp_contact_ready = self.grasp_contact_ready,
+            grasp_attach_ready = self.grasp_attach_ready,
             step = self.empty_step_info() if step is None else step,
             render = self.make_render_info(),
         )
